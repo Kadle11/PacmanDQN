@@ -1,12 +1,3 @@
-# Used code from
-# DQN implementation by Tejas Kulkarni found at
-# https://github.com/mrkulk/deepQN_tensorflow
-
-# Used code from:
-# The Pacman AI projects were developed at UC Berkeley found at
-# http://ai.berkeley.edu/project_overview.html
-
-
 import numpy as np
 import random
 import util
@@ -28,7 +19,7 @@ from DQN import *
 params = {
     # Model backups
     'load_file': None,
-    'save_file': None,
+    'save_file': "ModelBatchNormPRM_5000",
     'save_interval' : 10000, 
 
     # Training parameters
@@ -82,6 +73,8 @@ class PacmanDQN(game.Agent):
 
         self.replay_mem = deque()
         self.last_scores = deque()
+       	self.occurSum = 0
+       	self.replay_list = list()
 
 
     def getMove(self, state):
@@ -95,7 +88,8 @@ class PacmanDQN(game.Agent):
                              self.qnet.q_t: np.zeros(1),
                              self.qnet.actions: np.zeros((1, 4)),
                              self.qnet.terminals: np.zeros(1),
-                             self.qnet.rewards: np.zeros(1)})[0]
+                             self.qnet.rewards: np.zeros(1),
+                             self.qnet.phase_train: False})[0]
 
             self.Q_global.append(max(self.Q_pred))
             a_winner = np.argwhere(self.Q_pred == np.amax(self.Q_pred))
@@ -161,12 +155,17 @@ class PacmanDQN(game.Agent):
                 self.last_reward = 100.
             self.ep_rew += self.last_reward
 
-            # Store last experience into memory 
-            experience = (self.last_state, float(self.last_reward), self.last_action, self.current_state, self.terminal)
-            self.replay_mem.append(experience)
-            if len(self.replay_mem) > self.params['mem_size']:
+            
+            if len(self.replay_mem) > self.params['mem_size']-1:
                 self.replay_mem.popleft()
 
+	    # Store last experience into memory                  
+            
+            exp_count = np.sum([1 for instance in self.replay_mem if (instance[0].tolist()==self.last_state.tolist() and instance[2]==self.last_action)])
+            experience = (self.last_state, float(self.last_reward), self.last_action, self.current_state, self.terminal, exp_count)
+            self.replay_mem.append(experience)
+
+            
             # Save model
             if(params['save_file']):
                 if self.local_cnt > self.params['train_start'] and self.local_cnt % self.params['save_interval'] == 0:
@@ -211,26 +210,26 @@ class PacmanDQN(game.Agent):
     def train(self):
         # Train
         if (self.local_cnt > self.params['train_start']):
-            batch = random.sample(self.replay_mem, self.params['batch_size'])
-            batch_s = [] # States (s)
-            batch_r = [] # Rewards (r)
-            batch_a = [] # Actions (a)
-            batch_n = [] # Next states (s')
-            batch_t = [] # Terminal state (t)
+        	batch_s = [] # States (s)
+        	batch_r = [] # Rewards (r)
+        	batch_a = [] # Actions (a)
+        	batch_n = [] # Next states (s')
+        	batch_t = [] # Terminal state (t)
+        	self.occurSum = np.sum(instance[5] for instance in self.replay_mem)
+        	batch = [self.replay_mem[np.random.choice([i for i in range(len(self.replay_mem))], 1, [instance[5]/self.occurSum for instance in self.replay_mem])[0]] for x in range(self.params['batch_size'])]         
+        	for i in batch:
+        		batch_s.append(i[0])
+        		batch_r.append(i[1])
+        		batch_a.append(i[2])
+        		batch_n.append(i[3])
+        		batch_t.append(i[4])
+        	batch_s = np.array(batch_s)
+        	batch_r = np.array(batch_r)
+        	batch_a = self.get_onehot(np.array(batch_a))
+        	batch_n = np.array(batch_n)
+        	batch_t = np.array(batch_t)
+        	self.cnt, self.cost_disp = self.qnet.train(batch_s, batch_a, batch_t, batch_n, batch_r)
 
-            for i in batch:
-                batch_s.append(i[0])
-                batch_r.append(i[1])
-                batch_a.append(i[2])
-                batch_n.append(i[3])
-                batch_t.append(i[4])
-            batch_s = np.array(batch_s)
-            batch_r = np.array(batch_r)
-            batch_a = self.get_onehot(np.array(batch_a))
-            batch_n = np.array(batch_n)
-            batch_t = np.array(batch_t)
-
-            self.cnt, self.cost_disp = self.qnet.train(batch_s, batch_a, batch_t, batch_n, batch_r)
 
 
     def get_onehot(self, actions):
