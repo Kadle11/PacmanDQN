@@ -1,3 +1,8 @@
+# Modified version of
+# DQN implementation by Tejas Kulkarni
+# Prioritized Experienced Replay Implementation by Vishal Rao
+# https://github.com/mrkulk/deepQN_tensorflow
+
 import numpy as np
 import tensorflow as tf
 
@@ -14,7 +19,7 @@ class DQN:
         self.phase_train = tf.placeholder(tf.bool, name="phase_train")
 
  
-        # Layer 2 (Convolutional)
+        # Layer 1 (Convolutional)
         layer_name = 'conv1' ; size = 3 ; channels = 6 ; filters = 16 ; stride = 1
         self.w1 = tf.Variable(tf.random_normal([size,size,channels,filters], stddev=0.01),name=self.network_name + '_'+layer_name+'_weights')
         self.b1 = tf.Variable(tf.constant(0.1, shape=[filters]),name=self.network_name + '_'+layer_name+'_biases')
@@ -22,7 +27,7 @@ class DQN:
         self.bn1 = self.batch_norm(self.c1, 16, self.phase_train)
         self.o1 = tf.nn.leaky_relu(tf.add(self.bn1,self.b1),name=self.network_name + '_'+layer_name+'_activations')
 
-        # Layer 3 (Convolutional)
+        # Layer 2 (Convolutional)
         layer_name = 'conv2' ; size = 4 ; channels = 16 ; filters = 32 ; stride = 1
         self.w2 = tf.Variable(tf.random_normal([size,size,channels,filters], stddev=0.01),name=self.network_name + '_'+layer_name+'_weights')
         self.b2 = tf.Variable(tf.constant(0.1, shape=[filters]),name=self.network_name + '_'+layer_name+'_biases')
@@ -32,7 +37,7 @@ class DQN:
         
         o2_shape = self.o2.get_shape().as_list()        
 
-        # Layer 4 (Fully connected)
+        # Layer 3 (Fully connected)
         layer_name = 'fc3' ; hiddens = 256 ; dim = o2_shape[1]*o2_shape[2]*o2_shape[3]
         self.o2_flat = tf.reshape(self.o2, [-1,dim],name=self.network_name + '_'+layer_name+'_input_flat')
         self.w3 = tf.Variable(tf.random_normal([dim,hiddens], stddev=0.01),name=self.network_name + '_'+layer_name+'_weights')
@@ -40,7 +45,7 @@ class DQN:
         self.ip3 = tf.add(tf.matmul(self.o2_flat,self.w3),self.b3,name=self.network_name + '_'+layer_name+'_ips')
         self.o3 = tf.nn.leaky_relu(self.ip3,name=self.network_name + '_'+layer_name+'_activations')
 
-        # Layer 5 (Output)
+        # Layer 4 (Output)
         layer_name = 'fc4' ; hiddens = 4 ; dim = 256
         self.w4 = tf.Variable(tf.random_normal([dim,hiddens], stddev=0.01),name=self.network_name + '_'+layer_name+'_weights')
         self.b4 = tf.Variable(tf.constant(0.1, shape=[hiddens]),name=self.network_name + '_'+layer_name+'_biases')

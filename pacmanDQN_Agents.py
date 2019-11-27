@@ -1,3 +1,8 @@
+# Modified version of
+# DQN implementation by Tejas Kulkarni
+# Prioritized Experienced Replay Implementation by Vishal Rao
+# https://github.com/mrkulk/deepQN_tensorflow
+
 import numpy as np
 import random
 import util
